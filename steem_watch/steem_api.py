@@ -89,7 +89,9 @@ class ApiNode(object):
 
     async def _launch_on_connect(self):
         if self.on_connect is not None:
-            await self.on_connect()
+            result = self.on_connect()
+            if result is not None:
+                await result
         if self.state == ApiNode.State.HANDSHAKE:
             self._change_state(ApiNode.State.CONNECTED)
         return
