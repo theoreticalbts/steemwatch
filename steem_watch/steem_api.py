@@ -54,10 +54,12 @@ class ApiNode(object):
         websocket_url="",
         io_loop=None,
         on_connect=None,
+        retry_wait_time=60,
         ):
         self.websocket_url = websocket_url
         self.io_loop = io_loop
         self.on_connect = on_connect
+        self.retry_wait_time = retry_wait_time
 
         self.state = ApiNode.State.DISCONNECTED
         self.ws_conn = None
@@ -99,7 +101,7 @@ class ApiNode(object):
             if is_first_time:
                 is_first_time = False
             else:
-                await tornado.gen.sleep(60)
+                await tornado.gen.sleep(self.retry_wait_time)
             self.notify_id_to_cb.clear()
             for fut in self.call_id_to_future.values():
                 fut.set_exception( SteemException, "steemd RPC connection closed" )
@@ -107,7 +109,7 @@ class ApiNode(object):
             try:
                 self.ws_conn = await tornado.websocket.websocket_connect( url=self.websocket_url, io_loop=self.io_loop, connect_timeout=60 )
             except Exception:
-                print("couldn't connect to", self.websocket_url, "trying again in 60 seconds")
+                print("couldn't connect to", self.websocket_url, "trying again in "+str(self.retry_wait_time)+" seconds")
                 continue
 
             self._change_state( ApiNode.State.HANDSHAKE )
