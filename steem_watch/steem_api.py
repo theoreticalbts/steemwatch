@@ -69,6 +69,9 @@ class ApiNode(object):
         self.call_id_to_future = {}
 
         self.state_event = {st : tornado.locks.Event() for st in range(ApiNode.State.STATE_BEGIN, ApiNode.State.STATE_END)}
+
+        self.stop_requested = tornado.locks.Event()
+        self.main_loop_done = tornado.locks.Event()
         return
 
     def _change_state(self, new_state):
@@ -83,8 +86,11 @@ class ApiNode(object):
         self.io_loop.add_callback( lambda : self._main_loop() )
         return
 
-    def stop(self):
-        # Right now stop() does nothing
+    async def stop(self):
+        self.stop_requested.set()
+        if self.ws_conn is not None:
+            self.ws_conn.close()
+        await self.main_loop_done.wait()
         return
 
     async def _launch_on_connect(self):
@@ -103,6 +109,12 @@ class ApiNode(object):
             if is_first_time:
                 is_first_time = False
             else:
+                try:
+                    await self.stop_requested.wait(timeout=self.retry_wait_time)
+                    self.main_loop_done.set()
+                    break
+                except tornado.gen.TimeoutError:
+                    pass
                 await tornado.gen.sleep(self.retry_wait_time)
             self.notify_id_to_cb.clear()
             for fut in self.call_id_to_future.values():
