@@ -118,7 +118,7 @@ class ApiNode(object):
                 await tornado.gen.sleep(self.retry_wait_time)
             self.notify_id_to_cb.clear()
             for fut in self.call_id_to_future.values():
-                fut.set_exception( SteemException, "steemd RPC connection closed" )
+                fut.set_exception( SteemException("steemd RPC connection closed") )
             self.call_id_to_future.clear()
             try:
                 self.ws_conn = await tornado.websocket.websocket_connect( url=self.websocket_url, io_loop=self.io_loop, connect_timeout=60 )
